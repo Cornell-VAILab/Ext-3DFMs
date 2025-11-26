@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="description"
+        content="Emergent Extreme-View Geometry in 3D Foundation Models">
+  <meta name="keywords" content="Nerfies, D-NeRF, NeRF">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Emergent Extreme-View Geometry in 3D Foundation Models</title>
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+        rel="stylesheet">
+
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      }
+    };
+  </script>
+  <style>
+    .interactive-panel .attention-image-wrapper {
+      position: relative;
+      display: inline-block;
+      width: 100%;
+      max-width: 480px;
+    }
+    .interactive-panel .attention-image-wrapper img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+    }
+    .interactive-panel .attention-overlay {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: auto;
+    }
+    .attention-overlay .sample-patch {
+      position: absolute;
+      pointer-events: auto;
+      border-radius: 6px;
+      opacity: 0;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+      background: linear-gradient(135deg, rgba(0, 123, 255, 0.28), rgba(0, 212, 255, 0.32));
+      border: 1.5px solid rgba(255, 255, 255, 0.85);
+      cursor: pointer;
+    }
+    .attention-overlay .sample-patch.is-hover {
+      opacity: 0.6;
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+    .attention-overlay .sample-patch.is-active {
+      opacity: 1;
+      border: 2px solid #00bcd4;
+      background: linear-gradient(135deg, rgba(0, 123, 255, 0.45), rgba(0, 212, 255, 0.55));
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+    }
+    .attention-navigation {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin: 0 auto;
+      max-width: 1000px;
+    }
+    .attention-nav-button {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #ddd;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      color: #333;
+    }
+    .attention-nav-button:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transform: translateY(-50%) scale(1.05);
+    }
+    .attention-nav-button:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .attention-nav-button.prev {
+      left: -22px;
+    }
+    .attention-nav-button.next {
+      right: -22px;
+    }
+    @media (max-width: 768px) {
+      .attention-nav-button {
+        width: 40px;
+        height: 40px;
+      }
+      .attention-nav-button.prev {
+        left: -20px;
+      }
+      .attention-nav-button.next {
+        right: -20px;
+      }
+    }
+    .attention-pair-info {
+      text-align: center;
+      margin-top: 0.0rem;
+      font-size: 0.9rem;
+      color: #666;
+    }
+    .overlap-filter.is-active {
+      background-color: #363636;
+      color: #fff;
+    }
+    .section {
+      padding-bottom: 0rem;
+    }
+    .hero-body {
+      padding-bottom: 0rem;
+    }
+    .content a {
+      color: inherit;
+      text-decoration: underline;
+      text-decoration-color: rgba(0, 0, 0, 0.3);
+    }
+    .content a:hover {
+      text-decoration-color: rgba(0, 0, 0, 0.6);
+    }
+  </style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title">Emergent Extreme-View Geometry<br>in 3D Foundation Models</h1>
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">
+              <a href="https://therealevan.github.io/">Yiwen Zhang</a><sup>1</sup>
+            </span>
+            &nbsp;&nbsp;
+            <span class="author-block">
+              <a href="https://jot-jt.github.io/">Joseph Tung</a><sup>2</sup>
+            </span>
+            &nbsp;&nbsp;
+            <span class="author-block">
+              <a href="https://ruojincai.github.io/">Ruojin Cai</a><sup>3</sup>
+            </span>
+            &nbsp;&nbsp;
+            <span class="author-block">
+              <a href="https://cs.nyu.edu/~fouhey/">David Fouhey</a><sup>2</sup>
+            </span>
+            &nbsp;&nbsp;
+            <span class="author-block">
+              <a href="https://www.hadarelor.com/">Hadar Averbuch-Elor</a><sup>1</sup>
+            </span>
+          </div>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><sup>1</sup>Cornell University</span>
+            &nbsp;&nbsp;
+            <span class="author-block"><sup>2</sup>New York University</span>
+            &nbsp;&nbsp;
+            <span class="author-block"><sup>3</sup>Kempner Institute, Harvard University</span>
+          </div>
+
+          <div class="column has-text-centered">
+            <div class="publication-links">
+              <!-- PDF Link. -->
+              <span class="link-block">
+                <a href="./"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-file-pdf"></i>
+                  </span>
+                  <span>Paper</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="./"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="ai ai-arxiv"></i>
+                  </span>
+                  <span>arXiv</span>
+                </a>
+              </span>
+              <!-- Code Link. -->
+              <span class="link-block">
+                <a href="#"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-github"></i>
+                  </span>
+                  <span>Code (Coming Soon)</span>
+                  </a>
+              </span>
+              <!-- Dataset Link. -->
+              <span class="link-block">
+                <a href="#"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="far fa-images"></i>
+                  </span>
+                  <span>Data (Coming Soon)</span>
+                  </a>
+              </span>
+              <span class="link-block">
+                <a href="./static/supp_vis/viewer.html"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-vr-cardboard"></i>
+                  </span>
+                  <span>Interactive&nbsp;Visualization</span>
+                  </a>
+              </span>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="histogram">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <div class="column">
+        <!-- <h2 class="title is-3 has-text-centered">Rotation Error Distribution</h2> -->
+        <div class="box histogram-visualization">
+          <div class="histogram-chart-wrapper">
+            <canvas id="histogram-chart" aria-label="Histogram of VGGT rotation errors" role="img"></canvas>
+            <div class="histogram-floating-images" id="histogram-floating-images">
+              <div class="histogram-scene-name" id="histogram-scene-name">–</div>
+              <div class="histogram-images-row">
+                <img id="histogram-preview-img1" alt="Pair reference image 1" />
+                <img id="histogram-preview-img2" alt="Pair reference image 2" />
+              </div>
+              <div class="histogram-metrics-container">
+                <div class="histogram-metrics-subtitle">Relative Yaw / Pitch</div>
+                <div class="histogram-errors">
+                  <div class="error-metric gt-color">
+                    <span class="metric-label">Ground Truth</span>
+                    <span class="metric-value" id="histogram-gt-angles">–</span>
+                  </div>
+                  <div class="error-metric base-color">
+                    <span class="metric-label">Pre-trained Model</span>
+                    <span class="metric-value" id="histogram-base-angles">–</span>
+                  </div>
+                  <div class="error-metric ft-color">
+                    <span class="metric-label">Fine-tuned Model</span>
+                    <span class="metric-value" id="histogram-ft-angles">–</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="content has-text-justified" style="margin-top: 15px;">
+          <p>
+            <strong>Do 3D foundation models have an emergent understanding of extreme-views?</strong>
+            The <span style="color: #ff4444; font-weight: bold;">pre-trained</span> VGGT model was trained primarily on overlapping images.
+            Surprisingly, when tested on non-overlapping image pairs, the model still produces plausible estimates of relative pose,
+            with nearly half of the pairs yielding a rotation error below 30°.
+            Careful fine-tuning of a small number of parameters <span style="color: #ff9800; font-weight: bold;">substantially improves results</span>, as shown above by the error distribution on our new relative pose in-the-wild benchmark (UnScenePairs-t).
+            <br>
+            <em>Hover over the interactive canvas above to view random non-overlapping image pairs from our benchmark,
+            along with the rotation errors before and after our lightweight finetuning scheme.</em>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Abstract. -->
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Abstract</h2>
+        <div class="content has-text-justified">
+          <p>
+            3D foundation models (3DFMs) have recently transformed 3D vision, enabling joint prediction of depths, poses, and point maps directly from images. Yet their ability to reason under extreme, non-overlapping views remains largely unexplored.
+            In this work, we study their internal representations and find that 3DFMs exhibit an emergent understanding of extreme-view geometry, despite never being trained for such conditions. To further enhance these capabilities, we introduce a lightweight alignment scheme that refines their internal 3D representation by tuning only a small subset of backbone bias terms, leaving all decoder heads frozen. This targeted adaptation substantially improves relative pose estimation under extreme viewpoints without degrading per-image depth or point quality.
+            Additionally, we contribute MegaUnScene, a new benchmark of Internet scenes unseen by existing 3DFMs, with dedicated test splits for both relative pose estimation and dense 3D reconstruction. All code and data will be released.
+          </p>
+        </div>
+      </div>
+    </div>
+    <!--/ Abstract. -->
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Method. -->
+    <div class="columns is-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3 has-text-centered">Method</h2>
+        <div class="content has-text-justified">
+          <h3 class="title is-5">The Internal Language of 3DFMs</h3>
+          <div class="content has-text-justified">
+            <p>
+              3D foundation models (3DFMs) have recently shown remarkable progress in reconstructing scene geometry directly from unstructured images. However, despite their growing adoption, their internal structure has remained largely unexplored. In this work, we first analyze their internal <em>3D language</em> via cross-view attention maps, revealing that these models already encode a surprisingly rich understanding of scene geometry within their shared alternating attention backbone. We provide interactive cross-view attention visualizations below:
+            </p>
+          </div>
+          <div class="box interactive-panel" style="margin-bottom: 2rem; padding: 1rem 1.25rem;">
+            <h3 class="title is-5 has-text-centered">Interactive Cross-View Attention Visualization</h3>
+            <p>
+              Hover and select regions in the left image to view its corresponding cross-view attention map on the right. The heatmap is overlaid on the second image, with warmer colors (red/yellow) indicating higher attention values.
+            </p>
+            <div class="has-text-centered" style="margin: 1rem 0;">
+              <div class="buttons has-addons is-centered">
+                <button class="button is-small overlap-filter" data-overlap="large" id="filter-large">Large overlap image pairs</button>
+                <button class="button is-small overlap-filter" data-overlap="small" id="filter-small">Small overlap image pairs</button>
+                <button class="button is-small overlap-filter" data-overlap="none" id="filter-none">No overlap image pairs</button>
+              </div>
+            </div>
+            <div class="attention-navigation" style="margin-top: 0.75rem;">
+              <button class="attention-nav-button prev" id="attention-prev" aria-label="Previous pair">
+                <span class="icon"><i class="fas fa-chevron-left"></i></span>
+              </button>
+              <div class="columns attention-panel" style="flex: 1; margin: 0;">
+                <div class="column is-half has-text-centered">
+                  <div class="attention-image-wrapper">
+                    <img id="attention-img1" src="" alt="Attention source image">
+                    <div class="attention-overlay" id="attention-overlay"></div>
+                  </div>
+                </div>
+                <div class="column is-half has-text-centered">
+                  <figure style="margin: 0 auto; width: 100%; max-width: 480px;">
+                    <img id="attention-heatmap-preview" src="" alt="Attention heatmap preview" style="width: 100%; border: 1px solid #ddd; border-radius: 6px;">
+                  </figure>
+                </div>
+              </div>
+              <button class="attention-nav-button next" id="attention-next" aria-label="Next pair">
+                <span class="icon"><i class="fas fa-chevron-right"></i></span>
+              </button>
+            </div>
+            
+            <div style="margin-top: 0.5rem; min-height: 3.5em; text-align: center;">
+              <p id="attention-description-text" style="font-style: italic; color: #4a4a4a; max-width: 800px; margin: 0 auto;">
+                For regions with direct visual overlap, the high attention areas accumulate precisely at the corresponding locations, demonstrating the model's ability to identify visual correspondences.
+              </p>
+            </div>
+
+            <div class="attention-pair-info" id="attention-pair-info">
+              Pair 1 of 9 · Large overlap
+            </div>
+          </div>
+          <h3 class="title is-5">Rotation-Based 3DFM Alignment</h3>
+          <p>
+            Building on our findings, we propose a lightweight alignment framework that applies rotation-based supervision only on relative camera poses between image pairs using a geodesic loss. To preserve the model's pre-trained knowledge, we adopt a minimal backbone fine-tuning strategy that targets both the minimal set of layers and parameters within the backbone, updating only around 80k parameters, four orders of magnitude smaller than the full model. This targeted approach achieves effective alignment of the model's internal 3D language for extreme-view reasoning without degrading per-image depth or point quality.
+          </p>
+          <div class="has-text-centered" style="margin: 0; padding: 0;">
+            <img src="./static/images/method.png" alt="3DFM Architectural Design" style="max-width: 100%; height: auto; margin: 0; padding: 0; display: block;">
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--/ Method. -->
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Benchmark. -->
+    <div class="columns is-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3 has-text-centered">The MegaUnScene Benchmark</h2>
+        <div class="content has-text-justified">
+          <p>
+            Existing benchmarks evaluating 3DFMs typically have scenes with constrained 3D environments—<em>e.g.</em>, assuming constant illumination, transient objects, and camera intrinsics. To evaluate 3DFMs on unconstrained inputs captured <em>in-the-wild</em>, we create <em>MegaUnScene</em>&nbsp;: a new collection of 476 Internet scenes <em>unseen</em> by existing models. From these scenes, we assemble two test sets for relative pose estimation and one for dense reconstruction.
+          </p>
+
+          <h3 class="title is-5">Benchmarking Relative Pose in the Wild</h3>
+          <div class="content has-text-justified">
+            <p>
+              We construct two subsets for evaluating relative pose estimation: <em>UnScenePairs</em> targets image pairs with predominant rotational motion, while <em>UnScenePairs-t</em> focuses on pairs with larger camera baselines. Unlike prior benchmarks, these subsets capture unconstrained, in-the-wild views unseen by 3DFMs. In total, they comprise over 6,000 image pairs across more than 450 scenes, including substantial non-overlapping splits.
+            </p>
+          </div>
+
+          <h3 class="title is-5">Benchmarking Dense Predictions in the Wild</h3>
+          <div class="content has-text-justified">
+            <p>
+              We construct <em>UnSceneRecon</em>, a subset comprising 100 in-the-wild reconstructions with metric scale annotations. This benchmark evaluates dense reconstruction quality on unconstrained Internet photos exhibiting diverse lighting conditions, transients, and varying camera models (see figure below).
+            </p>
+          </div>
+          
+          <figure style="margin-top: 1.5rem;">
+            <img src="./static/images/unscenerecon_vis.png" alt="UnSceneRecon Benchmark Visualization" style="width: 100%; height: auto; border-radius: 6px;">
+            <figcaption class="has-text-centered" style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">
+              Metric scale visualization of <em>UnSceneRecon</em> scenes (L→R): Aghavnavank Monastery, Alamgiri Gate, Predjama Castle, and the Ritz Tower. For reference, the person is 2 meters tall.
+            </figcaption>
+          </figure>
+        </div>
+      </div>
+    </div>
+    <!--/ Benchmark. -->
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Results. -->
+    <div class="columns is-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3 has-text-centered">Experiments</h2>
+        
+        <!-- Quantitative Results Section -->
+        <h3 class="title is-5">Quantitative Results</h3>
+        <div class="content has-text-justified">
+          <p>
+            We present quantitative evaluations demonstrating the effectiveness of our alignment scheme. As shown below, our method achieves consistent and substantial improvements in extreme-view settings, establishing a new state of the art. Crucially, this targeted adaptation also preserves the 3DFMs' strong pre-trained multi-task capabilities over tasks such as multiview pose estimation and dense reconstruction prediction.
+          </p>
+        </div>
+        <div class="box" style="margin-bottom: 2rem;">
+          
+          <div class="tabs is-centered is-boxed" id="results-task-tabs">
+            <!-- Tabs will be injected by JS -->
+          </div>
+          
+          <div id="results-dataset-tabs" class="has-text-centered" style="margin-bottom: 1rem;">
+            <!-- Dataset buttons will be injected by JS -->
+          </div>
+          
+          <div id="results-legend" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; flex-wrap: nowrap; overflow-x: auto;"></div>
+
+          <div style="display: flex; gap: 20px; height: 400px; width: 100%;">
+            <div id="chart-container-mre" style="flex: 1; position: relative; min-width: 0;">
+              <canvas id="results-chart-mre"></canvas>
+            </div>
+            <div id="chart-container-ra" style="flex: 1.8; position: relative; min-width: 0;">
+              <canvas id="results-chart-ra"></canvas>
+            </div>
+          </div>
+          <p id="results-caption" style="margin-top: 1.5rem; font-size: 0.95rem; text-align: justify;"></p>
+        </div>
+
+        <h3 class="title is-5">Qualitative Results</h3>
+        <div class="content has-text-justified">
+            <p>
+              Below we illustrate two challenging image pairs from the UnScenePairs-t benchmark, where each pair is captured from viewpoints with large rotations and significant camera translation. For each example, the figure presents the input images, followed by a spherical visualization of the predicted relative rotations—<span style="color:black;">black</span> indicates the reference camera, <span style="color:#2563ca;">blue</span> indicates the ground-truth rotation, <span style="color:#ff5250;">red</span> indicates the pre-trained VGGT prediction, and <span style="color:#fbb52a;">yellow</span> indicates the fine-tuned VGGT prediction. On the right, the corresponding 3D reconstructions are shown, including the sparse ground-truth structure and the dense outputs from both the pre-trained and fine-tuned models. Across both cases, the pre-trained model produces distorted geometry due to incorrect relative rotation prediction, while the fine-tuned model yields accurate relative rotation prediction and coherent reconstruction. Please refer to our <a href="./static/supp_vis/viewer.html" style="color: #2563eb; text-decoration: none;">Interactive Visualization</a> for results of all models on the sELP, UnScenePairs and UnScenePairs-t test sets.
+            </p>
+            
+        </div>
+      </div>
+    </div>
+    <!--/ Results. -->
+  </div>
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <div class="column is-four-fifths" style="margin: 2rem 0; padding: 0; position: relative;">
+        <div style="position: absolute; top: 0; left: 0; z-index: 10;">
+          <button class="button is-small is-light" id="grid-fullscreen-btn" aria-label="View fullscreen" style="border-radius: 0 0 6px 0;">
+            <span class="icon"><i class="fas fa-expand"></i></span>
+          </button>
+        </div>
+        <img id="grid-image" src="./static/images/grid.png" alt="Qualitative results over UnScenePairs-t" style="width: 100%; height: auto; margin: 0; padding: 0; display: block;">
+      </div>
+    </div>
+  </div>
+  
+  <!-- Fullscreen modal -->
+  <div class="modal" id="grid-fullscreen-modal">
+    <div class="modal-background" id="grid-modal-background"></div>
+    <div class="modal-content" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 2rem; position: relative;">
+      <img id="grid-fullscreen-image" src="./static/images/grid.png" alt="Qualitative results over UnScenePairs-t" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+    </div>
+  </div>
+</section>
+
+<script src="./static/histogram/vggt_unscenepairs_t.js"></script>
+<script src="./static/js/histogram.js"></script>
+<script src="./static/js/results.js?v=2"></script>
+<script type="module">
+  import pairsMetadata from './static/attention_vis/pairs_metadata.js';
+
+  const overlayEl = document.getElementById('attention-overlay');
+  const previewEl = document.getElementById('attention-heatmap-preview');
+  const img1El = document.getElementById('attention-img1');
+  const prevButton = document.getElementById('attention-prev');
+  const nextButton = document.getElementById('attention-next');
+  const pairInfoEl = document.getElementById('attention-pair-info');
+
+  let currentPairIndex = 0;
+  let currentSampleId = null;
+  let currentPairData = null;
+  let samplePatchesData = null;
+  let Hp = 21;
+  let Wp = 37;
+  let filteredMetadata = pairsMetadata;
+  let currentFilter = 'large';
+
+  const overlapLabels = {
+    'large': 'Large overlap image pairs',
+    'small': 'Small overlap image pairs',
+    'none': 'No overlap image pairs'
+  };
+
+  // Descriptions for each overlap type
+  const overlapDescriptions = {
+    'large': 'For regions with direct visual overlap, the high attention areas accumulate precisely at the corresponding locations, demonstrating the model\'s ability to identify visual correspondences.',
+    'small': 'For regions without direct visual overlap, the cross-view maps often attend to "near-corresponding" areas—image regions spatially closest to the query points in the 3D world.',
+    'none': 'In cases with no overlap, the model often attends to regions with semantic or geometric resemblance, such as symmetry-based cues.'
+  };
+
+  function filterPairs(overlap) {
+    currentFilter = overlap;
+    filteredMetadata = pairsMetadata.filter(pair => pair.overlap === overlap);
+    
+    // Update filter buttons
+    document.querySelectorAll('.overlap-filter').forEach(btn => {
+      btn.classList.toggle('is-active', btn.dataset.overlap === overlap);
+    });
+
+    // Update description text
+    const descriptionEl = document.getElementById('attention-description-text');
+    if (descriptionEl && overlapDescriptions[overlap]) {
+      descriptionEl.textContent = overlapDescriptions[overlap];
+    }
+    
+    // Reset to first pair in filtered list
+    currentPairIndex = 0;
+    if (filteredMetadata.length > 0) {
+      loadPairData(0);
+    } else {
+      previewEl.src = '';
+      img1El.src = '';
+      if (overlayEl) overlayEl.innerHTML = '';
+      pairInfoEl.textContent = 'No pairs in this category';
+      updateNavigationButtons();
+    }
+  }
+
+  async function loadPairData(pairIndex) {
+    if (pairIndex < 0 || pairIndex >= filteredMetadata.length) return;
+    
+    const pairMeta = filteredMetadata[pairIndex];
+    const basePath = `./static/attention_vis/${pairMeta.path}/`;
+    
+    try {
+      const module = await import(`${basePath}sample_patches.js`);
+      samplePatchesData = module.default;
+      currentPairData = pairMeta;
+      
+      Hp = (samplePatchesData.patch_grid && samplePatchesData.patch_grid[0]) || 21;
+      Wp = (samplePatchesData.patch_grid && samplePatchesData.patch_grid[1]) || 37;
+      
+      img1El.src = `${basePath}img1.png`;
+      createOverlayButtons();
+      setupHoverSelection();
+      
+      if (samplePatchesData.samples.length) {
+        const firstId = String(samplePatchesData.samples[0].sample_id);
+        currentSampleId = null;
+        renderSample(firstId);
+      }
+      
+      updatePairInfo();
+      updateNavigationButtons();
+    } catch (error) {
+      console.error(`Failed to load pair ${pairMeta.pair_idx}:`, error);
+    }
+  }
+
+  function updatePairInfo() {
+    if (!currentPairData) return;
+    pairInfoEl.textContent = `Pair ${currentPairIndex + 1} of ${filteredMetadata.length}`;
+  }
+
+  function updateNavigationButtons() {
+    if (prevButton) prevButton.disabled = currentPairIndex === 0;
+    if (nextButton) nextButton.disabled = currentPairIndex >= filteredMetadata.length - 1;
+  }
+
+  function renderSample(sampleId) {
+    if (!samplePatchesData || String(sampleId) === String(currentSampleId)) return;
+    const sample = samplePatchesData.samples.find((s) => String(s.sample_id) === String(sampleId));
+    if (!sample) {
+      previewEl.src = '';
+      return;
+    }
+    const basePath = `./static/attention_vis/${currentPairData.path}/`;
+    previewEl.src = basePath + sample.heatmap;
+
+    currentSampleId = String(sample.sample_id);
+    if (overlayEl) {
+      overlayEl.querySelectorAll('.sample-patch').forEach((patch) => {
+        patch.classList.toggle('is-active', patch.dataset.sampleId === currentSampleId);
+      });
+    }
+  }
+
+  function createOverlayButtons() {
+    if (!overlayEl || !samplePatchesData) return;
+    overlayEl.innerHTML = '';
+    samplePatchesData.samples.forEach((sample) => {
+      const patch = document.createElement('div');
+      patch.className = 'sample-patch';
+      patch.dataset.sampleId = sample.sample_id;
+      const patchSize = sample.patch_size || 3;
+      const topPct = (sample.region_position[0] / Hp) * 100;
+      const leftPct = (sample.region_position[1] / Wp) * 100;
+      const heightPct = (patchSize / Hp) * 100;
+      const widthPct = (patchSize / Wp) * 100;
+      patch.style.top = `${topPct}%`;
+      patch.style.left = `${leftPct}%`;
+      patch.style.width = `${widthPct}%`;
+      patch.style.height = `${heightPct}%`;
+      overlayEl.appendChild(patch);
+    });
+  }
+
+  function findNearestSample(rowPct, colPct) {
+    if (!samplePatchesData) return null;
+    let closest = null;
+    let bestDist = Number.POSITIVE_INFINITY;
+    samplePatchesData.samples.forEach((sample) => {
+      const patchSize = sample.patch_size || 3;
+      const centerRowPct = ((sample.region_position[0] + patchSize / 2) / Hp) * 100;
+      const centerColPct = ((sample.region_position[1] + patchSize / 2) / Wp) * 100;
+      const dRow = centerRowPct - rowPct;
+      const dCol = centerColPct - colPct;
+      const dist = dRow * dRow + dCol * dCol;
+      if (dist < bestDist) {
+        bestDist = dist;
+        closest = sample;
+      }
+    });
+    return closest;
+  }
+
+  function setupHoverSelection() {
+    if (!overlayEl) return;
+    let hoveredPatch = null;
+    
+    overlayEl.addEventListener('mousemove', (event) => {
+      const rect = overlayEl.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const colPct = ((event.clientX - rect.left) / rect.width) * 100;
+      const rowPct = ((event.clientY - rect.top) / rect.height) * 100;
+      const nearest = findNearestSample(rowPct, colPct);
+      
+      // Remove hover from previous patch
+      if (hoveredPatch) {
+        hoveredPatch.classList.remove('is-hover');
+      }
+      
+      // Add hover to nearest patch
+      if (nearest) {
+        const patch = overlayEl.querySelector(`[data-sample-id="${nearest.sample_id}"]`);
+        if (patch && !patch.classList.contains('is-active')) {
+          patch.classList.add('is-hover');
+          hoveredPatch = patch;
+        } else {
+          hoveredPatch = null;
+        }
+      } else {
+        hoveredPatch = null;
+      }
+    });
+    
+    overlayEl.addEventListener('mouseleave', () => {
+      if (hoveredPatch) {
+        hoveredPatch.classList.remove('is-hover');
+        hoveredPatch = null;
+      }
+    });
+    
+    // Click to confirm and show heatmap
+    overlayEl.addEventListener('click', (event) => {
+      const rect = overlayEl.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const colPct = ((event.clientX - rect.left) / rect.width) * 100;
+      const rowPct = ((event.clientY - rect.top) / rect.height) * 100;
+      const nearest = findNearestSample(rowPct, colPct);
+      if (nearest) {
+        renderSample(nearest.sample_id);
+      }
+    });
+  }
+
+  function goToPair(direction) {
+    const newIndex = currentPairIndex + direction;
+    if (newIndex >= 0 && newIndex < filteredMetadata.length) {
+      currentPairIndex = newIndex;
+      loadPairData(currentPairIndex);
+    }
+  }
+
+  if (prevButton) {
+    prevButton.addEventListener('click', () => goToPair(-1));
+  }
+  if (nextButton) {
+    nextButton.addEventListener('click', () => goToPair(1));
+  }
+
+  // Setup filter buttons
+  document.querySelectorAll('.overlap-filter').forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterPairs(btn.dataset.overlap);
+    });
+  });
+
+  // Load first pair (start with "large" filter)
+  if (pairsMetadata && pairsMetadata.length > 0) {
+    document.getElementById('filter-large').classList.add('is-active');
+    filterPairs('large');
+  }
+
+  // Fullscreen grid image functionality
+  const gridFullscreenBtn = document.getElementById('grid-fullscreen-btn');
+  const gridModal = document.getElementById('grid-fullscreen-modal');
+  const gridModalBackground = document.getElementById('grid-modal-background');
+  const gridModalContent = gridModal ? gridModal.querySelector('.modal-content') : null;
+  const gridFullscreenImage = document.getElementById('grid-fullscreen-image');
+
+  function closeGridModal() {
+    if (gridModal) {
+      gridModal.classList.remove('is-active');
+    }
+  }
+
+  if (gridFullscreenBtn && gridModal) {
+    gridFullscreenBtn.addEventListener('click', () => {
+      gridModal.classList.add('is-active');
+    });
+
+    // Close when clicking on modal background
+    if (gridModalBackground) {
+      gridModalBackground.addEventListener('click', closeGridModal);
+    }
+
+    // Close when clicking on modal content area (but not the image)
+    if (gridModalContent) {
+      gridModalContent.addEventListener('click', (event) => {
+        // Only close if clicking on the content container, not the image
+        if (event.target === gridModalContent) {
+          closeGridModal();
+        }
+      });
+    }
+
+    // Prevent closing when clicking on the image itself
+    if (gridFullscreenImage) {
+      gridFullscreenImage.addEventListener('click', (event) => {
+        event.stopPropagation();
+      });
+    }
+  }
+</script>
+
+<footer style="text-align: center; padding: 40px 20px; color: #666; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+  <p style="margin: 0;">This website is borrowed from <a href="https://nerfies.github.io/" style="color: #2563eb; text-decoration: none;">Nerfies</a>.</p>
+</footer>
+</body>
+</html>
+
+
